@@ -29,15 +29,10 @@ def get_last(url):
     return parts.group(1), parts.group(2)
 
 def get_main(url):
-    slash = re.search('.+\..+?\/', url)
-    return slash.group(0)
+    slash = re.search('(.+\..+?\/)(.*)', url)
+    return slash.group(1), slash.group(2)
 
-def directory_test(url):
-    directory = True if url[-1] is '/' else False
-    response_codes = {}
-    path, last = get_last(url)
-    main = get_main(url)
-
+def basic_tests(url, main, rest):
     access_test(url, "post")
     access_test(url, "head")
     access_test(url, "options")
@@ -51,8 +46,16 @@ def directory_test(url):
     access_test(url, "get", { 'X-Client-IP': "127.0.0.1" })
     access_test(url, "get", { 'X-Host': "127.0.0.1" })
     access_test(url, "get", { 'X-Forwarded-Host': "127.0.0.1" })
-    access_test(path, "get", { 'X-Rewrite-URL': last })
+    access_test(main, "get", { 'X-Rewrite-URL': '/' + rest })    
+    access_test(main, "get", { 'X-Original-URL': '/' + rest })
 
+def directory_test(url):
+    directory = True if url[-1] is '/' else False
+    response_codes = {}
+    path, last = get_last(url)
+    main, rest = get_main(url)
+
+    basic_tests(url, main, rest)
 
     for f in first:
         access_test(url.replace(main, main + f))
@@ -101,9 +104,8 @@ def access_test(path, rtype = "get", h = ""):
     try:
         response = request(path, rtype, h)        
         sc = response.status_code
-        if sc != 403 and sc != 404 and sc != 400:
-            print("\n{} - [{}] with {}".format(response.url, response.status_code, rtype))
-            return
+        if sc != 403 and sc != 404 and sc != 400 and sc != 500:
+            print("\n{} - [{}] with {} and header {}".format(path, response.status_code, rtype, h))
         if response.status_code not in response_codes:
             response_codes[response.status_code] = 1
         else:
