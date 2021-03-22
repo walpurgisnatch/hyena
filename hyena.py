@@ -7,6 +7,8 @@ pre_path = ["%2e/", "%252e/", "//", "\\", "%5c", "%255c", "pupa/lupa/../../", "p
 past_path = ["pupa/lupa/../../", "pupa/lupa/%2e%2e/%2e%2e/", "pupa%c1%9clupa%c1%9c%2e%2e%c1%9c%2e%2e%c1%9c", "/"]
 replace_slash = ["?", "??", "\\", "/\".hithere", "..;/"]
 response_codes = {}
+to_ignore = [400, 403, 404, 500]
+full_path = ""
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -52,6 +54,7 @@ def basic_tests(url, main, rest):
 def directory_test(url):
     directory = True if url[-1] is '/' else False
     response_codes = {}
+    full_path = url
     path, last = get_last(url)
     main, rest = get_main(url)
 
@@ -100,11 +103,17 @@ def request(path, rtype = "get", h = ""):
         return "error"
     return response
 
+def full_path_match(url):
+    url = 
+    if url == full_path or url[-1] == full_path or url == full_path[-1]:
+        return True
+    return False
+
 def access_test(path, rtype = "get", h = ""):
     try:
         response = request(path, rtype, h)        
         sc = response.status_code
-        if sc != 403 and sc != 404 and sc != 400 and sc != 500:
+        if sc not in to_ignore and full_path_match(response.url):
             print("\n{} - [{}] with {} and header {}".format(path, response.status_code, rtype, h))
         if response.status_code not in response_codes:
             response_codes[response.status_code] = 1
