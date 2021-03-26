@@ -22,7 +22,7 @@ def get_args():
 
 
 def print_status_codes():
-    print("Done\nStatus codes:")
+    print("Done\nResponses:")
     for code in response_codes:
         print("[{}] - {} times".format(code, response_codes[code]))
 
@@ -54,6 +54,7 @@ def basic_tests(url, main, rest):
 def directory_test(url):
     directory = True if url[-1] is '/' else False
     response_codes = {}
+    global full_path
     full_path = url
     path, last = get_last(url)
     main, rest = get_main(url)
@@ -88,7 +89,7 @@ def request(path, rtype = "get", h = ""):
         if h == "":
             response = requests.get(path, timeout=2.5)
         else:
-            response = requests.get(path, headers=h, timeout=2.5)            
+            response = requests.get(path, headers=h, timeout=2.5)         
     elif rtype is "post":
         response = requests.post(path, headers={ 'Content-Length': '0' }, timeout=2.5)
     elif rtype is "head":
@@ -113,7 +114,7 @@ def access_test(path, rtype = "get", h = ""):
         response = request(path, rtype, h)        
         sc = response.status_code
         if sc not in to_ignore and full_path_match(response.url):
-            print("\n{} - [{}] with {} and header {}".format(path, response.status_code, rtype, h))
+            print("\n[{}] {} with {} and header {}".format(response.status_code, path, rtype, h))
         if response.status_code not in response_codes:
             response_codes[response.status_code] = 1
         else:
