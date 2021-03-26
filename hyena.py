@@ -104,7 +104,6 @@ def request(path, rtype = "get", h = ""):
     return response
 
 def full_path_match(url):
-    url = 
     if url == full_path or url[-1] == full_path or url == full_path[-1]:
         return True
     return False
