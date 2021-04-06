@@ -13,10 +13,11 @@ full_path = ""
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-u", dest="target", help="Target url")
+    parser.add_argument("-f", dest"targets", help="File with target urls")
     arguments = parser.parse_args()
 
-    if not arguments.target:
-        parser.error("[-] error: null target")
+    if not arguments.target and not arguments.targets:
+        parser.error("[-] Error: null target")
     
     return arguments
 
@@ -51,6 +52,14 @@ def basic_tests(url, main, rest):
     access_test(main, "get", { 'X-Rewrite-URL': '/' + rest })    
     access_test(main, "get", { 'X-Original-URL': '/' + rest })
 
+def through_file(fname):
+    try: 
+        with open(fname, 'r') as f:
+            for line in f:
+                directory_test(line);
+    except:
+        print("[-] Error: Unable to open file {}".format(fname))
+
 def directory_test(url):
     directory = True if url[-1] is '/' else False
     response_codes = {}
@@ -59,6 +68,7 @@ def directory_test(url):
     path, last = get_last(url)
     main, rest = get_main(url)
 
+    print("\tTesting {}".format(url))
     basic_tests(url, main, rest)
 
     for f in first:
@@ -82,7 +92,6 @@ def directory_test(url):
         else:
             npath = path + "/" + last.replace('/', pre)
         access_test(npath)
-    print_status_codes()
 
 def request(path, rtype = "get", h = ""):
     if rtype is "get":
@@ -114,7 +123,10 @@ def access_test(path, rtype = "get", h = ""):
         response = request(path, rtype, h)        
         sc = response.status_code
         if sc not in to_ignore and full_path_match(response.url):
-            print("\n[{}] {} with {} and header {}".format(response.status_code, path, rtype, h))
+            if h is not "":
+                print("\n[{}] {} with {} request and header {}".format(response.status_code, path, rtype, h))
+            else:
+                print("\n[{}] {} with {} request".format(response.status_code, path, rtype))
         if response.status_code not in response_codes:
             response_codes[response.status_code] = 1
         else:
@@ -125,9 +137,13 @@ def access_test(path, rtype = "get", h = ""):
 def main():
     args = get_args()
     try:
-        directory_test(args.target)
+        if args.target:
+            directory_test(args.target)
+        else:
+            through_file(args.targets)
+        print_status_codes()
     except KeyboardInterrupt:
-        print("\nAborted\n")
+        print("\nAborted\n")    
 
 if __name__ == "__main__":
     main()
