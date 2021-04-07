@@ -13,7 +13,7 @@ full_path = ""
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-u", dest="target", help="Target url")
-    parser.add_argument("-f", dest"targets", help="File with target urls")
+    parser.add_argument("-f", dest="targets", help="File with target urls")
     arguments = parser.parse_args()
 
     if not arguments.target and not arguments.targets:
