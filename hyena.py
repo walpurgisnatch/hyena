@@ -109,21 +109,21 @@ def request(path, rtype = "get", h = {}):
     global timeout
     if len(h) == 0:
         h = ""
-    if rtype is "get":
+    if rtype == "get":
         response = requests.get(path, headers=h, timeout=timeout)
-    elif rtype is "post":
+    elif rtype == "post":
         if h == "":
             h = { 'Content-Length': '0' }
         else:
             h['Content-Length'] = '0'
         response = requests.post(path, headers={ h }, timeout=timeout)
-    elif rtype is "head":
+    elif rtype == "head":
         response = requests.head(path, timeout=timeout, headers=h)
-    elif rtype is "options":
+    elif rtype == "options":
         response = requests.options(path, timeout=timeout, headers=h)
-    elif rtype is "put":
+    elif rtype == "put":
         response = requests.put(path, timeout=timeout, headers=h)
-    elif rtype is "patch":
+    elif rtype == "patch":
         response = requests.patch(path, timeout=timeout, headers=h)
     else:
         return "error"
