@@ -7,7 +7,7 @@ pre_path = ["..;/", "%2e/", "%252e/", "//", "\\", "%5c", "%255c", "pupa/lupa/../
 past_path = ["pupa/lupa/../../", "pupa/lupa/%2e%2e/%2e%2e/", "pupa%c1%9clupa%c1%9c%2e%2e%c1%9c%2e%2e%c1%9c", "/"]
 replace_slash = ["?", "??", "\\", "/\".hithere", "..;/"]
 response_codes = {}
-to_ignore = [400, 403, 404, 500]
+to_ignore = [400, 403, 404]
 full_path = ""
 timeout = 10
 cookie = ""
@@ -47,7 +47,8 @@ def get_main(url):
     slash = re.search('(.+\..+?\/)(.*)', url)
     return slash.group(1), slash.group(2)
 
-def basic_tests(url, butlast, last):
+def basic_tests(url, main, rest, butlast):
+    content_length = len(access_test(main, "get").content)
     access_test(url, "post")
     access_test(url, "head")
     access_test(url, "options")
@@ -61,9 +62,13 @@ def basic_tests(url, butlast, last):
     access_test(url, "get", { 'X-Client-IP': "127.0.0.1" })
     access_test(url, "get", { 'X-Host': "127.0.0.1" })
     access_test(url, "get", { 'X-Forwarded-Host': "127.0.0.1" })
-    access_test(butlast, "get", { 'X-Rewrite-URL': '/{}{}'.format(butlast, last) })    
-    access_test(butlast, "get", { 'X-Original-URL': '/'.format(butlast, last) })
-
+    response = access_test(main, "get", { 'X-Rewrite-URL': '/{}'.format(rest) })
+    if len(response.content) != content_length:
+        print("\nContent-length differ on {} with {} request and header {}".format(main, "get", { 'X-Rewrite-URL': '/{}'.format(rest) }))
+    response = access_test(main, "get", { 'X-Original-URL': '/{}'.format(rest) })
+    if len(response.content) != content_length:
+        print("\nContent-length differ on {} with {} request and header {}".format(main, "get", { 'X-Original-URL': '/{}'.format(rest) }))
+    
 def through_file(fname):
     try: 
         with open(fname, 'r') as f:
@@ -81,7 +86,7 @@ def directory_test(url):
     main, rest = get_main(url)
 
     print("\tTesting {}".format(url))
-    basic_tests(url, path, last)
+    basic_tests(url, main, rest, path)
 
     for f in first:
         access_test(url.replace(main, main + f))
@@ -141,7 +146,7 @@ def access_test(path, rtype = "get", h = {}):
     try:
         response = request(path, rtype, h)        
         sc = response.status_code
-        if sc not in to_ignore and full_path_match(response.url):
+        if sc not in to_ignore:
             if h is not "":
                 print("\n[{}] {} with {} request and header {}".format(response.status_code, path, rtype, h))
             else:
@@ -150,6 +155,7 @@ def access_test(path, rtype = "get", h = {}):
             response_codes[response.status_code] = 1
         else:
             response_codes[response.status_code] += 1
+        return response
     except Exception as e:
         print(e)
 
@@ -163,6 +169,5 @@ def main():
         print_status_codes()
     except KeyboardInterrupt:
         print("\nAborted\n")    
-
 if __name__ == "__main__":
     main()
