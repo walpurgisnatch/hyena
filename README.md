@@ -14,7 +14,7 @@ $ python3 hyena.py -f uris.list
 ```
 
 ### More stuff
-Cookie setted with `-c` flag
+Cookie setted with `-c` flag  
 Post data with `-d` flag
 
 ```
