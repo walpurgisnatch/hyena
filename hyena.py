@@ -11,15 +11,19 @@ to_ignore = [400, 403, 404]
 full_path = ""
 timeout = 10
 cookie = ""
+data = ""
 
 def get_args():
     global timeout
     global cookie
+    global data
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("-u", dest="target", help="Target url")
     parser.add_argument("-f", dest="targets", help="File with target urls")
-    parser.add_argument("-t", dest="timeout", help="Timeout")
+    parser.add_argument("-t", dest="timeout", type=float, help="Timeout")
     parser.add_argument("-c", "--cookie", dest="cookie", help="Cookie")
+    parser.add_argument("-d", "--data", dest="data", help="Post body")
     arguments = parser.parse_args()
 
     if not arguments.target and not arguments.targets:
@@ -30,6 +34,9 @@ def get_args():
 
     if arguments.cookie:
         cookie = arguments.cookie
+
+    if arguments.data:
+        data = arguments.data
     
     return arguments
 
@@ -48,24 +55,28 @@ def get_main(url):
     return slash.group(1), slash.group(2)
 
 def basic_tests(url, main, rest, butlast):
-    content_length = len(access_test(main, "get").content)
+    global data
+    rtype = "get"
+    if data != "":
+        rtype = "post"
+    content_length = len(access_test(main, "get", {}, False).content)
     access_test(url, "post")
     access_test(url, "head")
     access_test(url, "options")
     access_test(url, "put")
     access_test(url, "patch")
-    access_test(url, "get", { 'Referer': butlast })
-    access_test(url, "get", { 'X-Custom-IP-Authorization': "127.0.0.1" })
-    access_test(url, "get", { 'X-Originationg-IP': "127.0.0.1" })
-    access_test(url, "get", { 'X-Forwarded-For': "127.0.0.1" })
-    access_test(url, "get", { 'X-Remote-IP': "127.0.0.1" })
-    access_test(url, "get", { 'X-Client-IP': "127.0.0.1" })
-    access_test(url, "get", { 'X-Host': "127.0.0.1" })
-    access_test(url, "get", { 'X-Forwarded-Host': "127.0.0.1" })
-    response = access_test(main, "get", { 'X-Rewrite-URL': '/{}'.format(rest) })
+    access_test(url, rtype, { 'Referer': butlast })
+    access_test(url, rtype, { 'X-Custom-IP-Authorization': "127.0.0.1" })
+    access_test(url, rtype, { 'X-Originationg-IP': "127.0.0.1" })
+    access_test(url, rtype, { 'X-Forwarded-For': "127.0.0.1" })
+    access_test(url, rtype, { 'X-Remote-IP': "127.0.0.1" })
+    access_test(url, rtype, { 'X-Client-IP': "127.0.0.1" })
+    access_test(url, rtype, { 'X-Host': "127.0.0.1" })
+    access_test(url, rtype, { 'X-Forwarded-Host': "127.0.0.1" })
+    response = access_test(main, "get", { 'X-Rewrite-URL': '/{}'.format(rest) }, False)
     if len(response.content) != content_length:
         print("\nContent-length differ on {} with {} request and header {}".format(main, "get", { 'X-Rewrite-URL': '/{}'.format(rest) }))
-    response = access_test(main, "get", { 'X-Original-URL': '/{}'.format(rest) })
+    response = access_test(main, "get", { 'X-Original-URL': '/{}'.format(rest) }, False)
     if len(response.content) != content_length:
         print("\nContent-length differ on {} with {} request and header {}".format(main, "get", { 'X-Original-URL': '/{}'.format(rest) }))
     
@@ -110,18 +121,20 @@ def directory_test(url):
             npath = path + "/" + last.replace('/', pre)
         access_test(npath)
 
-def request(path, rtype = "get", h = {}):
+def request(path, rtype = "get", h = {}, output = True):
     global timeout
+    global data
     if len(h) == 0:
         h = ""
     if rtype == "get":
         response = requests.get(path, headers=h, timeout=timeout)
     elif rtype == "post":
-        if h == "":
-            h = { 'Content-Length': '0' }
-        else:
-            h['Content-Length'] = '0'
-        response = requests.post(path, headers={ h }, timeout=timeout)
+        if data == "":
+            if h == "":
+                h = { 'Content-Length': '0' }
+            else:
+                h['Content-Length'] = '0'
+        response = requests.post(path, headers={ h }, data=data, timeout=timeout)
     elif rtype == "head":
         response = requests.head(path, timeout=timeout, headers=h)
     elif rtype == "options":
@@ -132,7 +145,7 @@ def request(path, rtype = "get", h = {}):
         response = requests.patch(path, timeout=timeout, headers=h)
     else:
         return "error"
-    return response
+    return response, output
 
 def full_path_match(url):
     if url == full_path or url[-1] == full_path or url == full_path[-1]:
@@ -144,17 +157,18 @@ def access_test(path, rtype = "get", h = {}):
     if cookie != "":
         h['Cookie'] = cookie
     try:
-        response = request(path, rtype, h)        
+        response, output = request(path, rtype, h)        
         sc = response.status_code
-        if sc not in to_ignore:
-            if h is not "":
-                print("\n[{}] {} with {} request and header {}".format(response.status_code, path, rtype, h))
+        if output:
+            if sc not in to_ignore:
+                if h is not "":
+                    print("\n[{}] {} with {} request and header {}".format(response.status_code, path, rtype, h))
+                else:
+                    print("\n[{}] {} with {} request".format(response.status_code, path, rtype))
+            if response.status_code not in response_codes:
+                response_codes[response.status_code] = 1
             else:
-                print("\n[{}] {} with {} request".format(response.status_code, path, rtype))
-        if response.status_code not in response_codes:
-            response_codes[response.status_code] = 1
-        else:
-            response_codes[response.status_code] += 1
+                response_codes[response.status_code] += 1
         return response
     except Exception as e:
         print(e)
@@ -168,6 +182,7 @@ def main():
             through_file(args.targets)
         print_status_codes()
     except KeyboardInterrupt:
-        print("\nAborted\n")    
+        print("\nAborted\n")
+        
 if __name__ == "__main__":
     main()
