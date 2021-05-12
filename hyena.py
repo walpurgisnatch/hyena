@@ -12,18 +12,21 @@ full_path = ""
 timeout = 10
 cookie = ""
 data = ""
+reqtype = "get"
 
 def get_args():
     global timeout
     global cookie
     global data
+    global reqtype
     
     parser = argparse.ArgumentParser()
     parser.add_argument("-u", dest="target", help="Target url")
     parser.add_argument("-f", dest="targets", help="File with target urls")
     parser.add_argument("-t", dest="timeout", type=float, help="Timeout")
+    parser.add_argument("-r", dest="reqtype", help="Request type")
     parser.add_argument("-c", "--cookie", dest="cookie", help="Cookie")
-    parser.add_argument("-d", "--data", dest="data", help="Post body")
+    parser.add_argument("-d", "--data", dest="data", help="Request body")
     arguments = parser.parse_args()
 
     if not arguments.target and not arguments.targets:
@@ -37,6 +40,9 @@ def get_args():
 
     if arguments.data:
         data = arguments.data
+
+    if arguments.reqtype:
+        reqtype = arguments.reqtype
     
     return arguments
 
@@ -56,10 +62,9 @@ def get_main(url):
 
 def basic_tests(url, main, rest, butlast):
     global data
-    rtype = "get"
-    if data != "":
+    rtype = reqtype
+    if data != "" and rtype == "get":
         rtype = "post"
-    content_length = len(access_test(main, "get", {}, False).content)
     access_test(url, "post")
     access_test(url, "head")
     access_test(url, "options")
@@ -73,12 +78,14 @@ def basic_tests(url, main, rest, butlast):
     access_test(url, rtype, { 'X-Client-IP': "127.0.0.1" })
     access_test(url, rtype, { 'X-Host': "127.0.0.1" })
     access_test(url, rtype, { 'X-Forwarded-Host': "127.0.0.1" })
-    response = access_test(main, "get", { 'X-Rewrite-URL': '/{}'.format(rest) }, False)
-    if len(response.content) != content_length:
-        print("\nContent-length differ on {} with {} request and header {}".format(main, "get", { 'X-Rewrite-URL': '/{}'.format(rest) }))
-    response = access_test(main, "get", { 'X-Original-URL': '/{}'.format(rest) }, False)
-    if len(response.content) != content_length:
-        print("\nContent-length differ on {} with {} request and header {}".format(main, "get", { 'X-Original-URL': '/{}'.format(rest) }))
+    if rtype == "get":
+        content_length = len(access_test(main, "get", {}, False).content)
+        response = access_test(main, "get", { 'X-Rewrite-URL': '/{}'.format(rest) }, False)
+        if len(response.content) != content_length:
+            print("\nContent-length differ on {} with {} request and header {}".format(main, "get", { 'X-Rewrite-URL': '/{}'.format(rest) }))
+        response = access_test(main, "get", { 'X-Original-URL': '/{}'.format(rest) }, False)
+        if len(response.content) != content_length:
+            print("\nContent-length differ on {} with {} request and header {}".format(main, "get", { 'X-Original-URL': '/{}'.format(rest) }))
     
 def through_file(fname):
     try: 
@@ -89,14 +96,14 @@ def through_file(fname):
         print("[-] Error: Unable to open file {}".format(fname))
 
 def directory_test(url):
+    global full_path
     directory = True if url[-1] is '/' else False
     response_codes = {}
-    global full_path
     full_path = url
     path, last = get_last(url)
     main, rest = get_main(url)
 
-    print("\tTesting {}".format(url))
+    print("[Testing] {}".format(url))
     basic_tests(url, main, rest, path)
 
     for f in first:
@@ -121,7 +128,7 @@ def directory_test(url):
             npath = path + "/" + last.replace('/', pre)
         access_test(npath)
 
-def request(path, rtype = "get", h = {}, output = True):
+def request(path, rtype = reqtype, h = {}):
     global timeout
     global data
     if len(h) == 0:
@@ -140,24 +147,19 @@ def request(path, rtype = "get", h = {}, output = True):
     elif rtype == "options":
         response = requests.options(path, timeout=timeout, headers=h)
     elif rtype == "put":
-        response = requests.put(path, timeout=timeout, headers=h)
+        response = requests.put(path, timeout=timeout, data=data, headers=h)
     elif rtype == "patch":
-        response = requests.patch(path, timeout=timeout, headers=h)
+        response = requests.patch(path, timeout=timeout, data=data, headers=h)
     else:
         return "error"
-    return response, output
+    return response
 
-def full_path_match(url):
-    if url == full_path or url[-1] == full_path or url == full_path[-1]:
-        return True
-    return False
-
-def access_test(path, rtype = "get", h = {}):
+def access_test(path, rtype = reqtype, h = {}, output = True):
     global cookie 
     if cookie != "":
         h['Cookie'] = cookie
     try:
-        response, output = request(path, rtype, h)        
+        response = request(path, rtype, h)        
         sc = response.status_code
         if output:
             if sc not in to_ignore:
