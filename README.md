@@ -30,8 +30,8 @@ $ python3 hyena.py -f uris.list
 ```
 
 ### More stuff
-- To specify request type, use `-r` flag. Get by default.
-- To set data for post, put and patch requests use `-d` flag
+- To specify request type, use `-r` flag. GET by default.
+- To set data for POST, PUT and PATCH requests use `-d` flag
 - For cookie usage, there's `-c` flag
 - Also there's `-t` for timeout. 10 sec by default
 ```
@@ -41,8 +41,3 @@ $ python3 hyena.py -u https://example.com/admin -c "session=commonuser" -r post 
 ## License
 
 Licensed under the MIT License.
-
-
-## Copyright
-
-Copyright (c) 2021 Walpurgisnatch
